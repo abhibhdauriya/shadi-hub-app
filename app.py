@@ -84,16 +84,10 @@ st.markdown("""
         text-decoration: none;
         display: inline-block;
     }
-    .gold-text {
-        color: #D4AF37;
-    }
     .price-tag {
         font-size: 20px;
         font-weight: bold;
         color: #D4AF37;
-    }
-    .rating-stars {
-        color: #FFD700;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -130,7 +124,6 @@ def init_db():
             venue_address TEXT,
             guest_count INTEGER DEFAULT 0,
             whatsapp_group TEXT,
-            photo_gallery_link TEXT,
             FOREIGN KEY(host_id) REFERENCES users(id)
         )
     ''')
@@ -147,7 +140,7 @@ def init_db():
             rsvp_status TEXT DEFAULT 'pending',
             invitation_code TEXT UNIQUE,
             well_wish TEXT,
-            invitation_sent BOOLEAN DEFAULT 0,
+            invitation_sent INTEGER DEFAULT 0,
             FOREIGN KEY(wedding_id) REFERENCES weddings(id)
         )
     ''')
@@ -171,7 +164,7 @@ def init_db():
         )
     ''')
     
-    # Products table (Shopping)
+    # Products table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -250,7 +243,7 @@ def seed_demo_data():
                    (vendor_user_id, "Dream Photography Studio", "photographer", "Award winning wedding photographers", "premium", 50000, 200000, 4.9, "Mumbai", "919876543210"))
     
     # More Vendors
-    vendors = [
+    vendors_data = [
         ("Mehndi Art by Seema", "mehndi", "Bridal mehndi specialist", "mid-range", 10000, 50000, 4.7, "Delhi", "919876543211"),
         ("Grand Palace Hotel", "venue", "Luxury wedding venue", "luxury", 500000, 2000000, 4.8, "Mumbai", "919876543212"),
         ("Spice Caterers", "catering", "Exotic wedding cuisine", "premium", 500, 1500, 4.6, "Mumbai", "919876543213"),
@@ -258,27 +251,25 @@ def seed_demo_data():
         ("Raj Makeup Studio", "makeup", "Bridal makeup specialist", "premium", 15000, 50000, 4.8, "Mumbai", "919876543215"),
     ]
     
-    for v in vendors:
+    for v in vendors_data:
         cursor.execute('''INSERT INTO vendors (user_id, business_name, category, description, price_range, min_price, max_price, rating, location, whatsapp)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                        (vendor_user_id,) + v)
     
-    # Products (Shopping items)
-    products = [
-        ("Royal Wedding Lehenga", "outfits", 45000, 55000, "Beautiful red bridal lehenga", "https://via.placeholder.com/300x300?text=Lehenga", 18),
-        ("Designer Sherwani", "outfits", 35000, 45000, "Royal gold sherwani for groom", "https://via.placeholder.com/300x300?text=Sherwani", 22),
-        ("Premium Gift Hamper", "gifts", 2500, 4000, "Luxury wedding gift set", "https://via.placeholder.com/300x300?text=Gift", 37),
-        ("Wedding Decor Pack", "decor", 15000, 25000, "Complete decor setup", "https://via.placeholder.com/300x300?text=Decor", 40),
-        ("Bridal Jewelry Set", "accessories", 12000, 20000, "Gold plated bridal set", "https://via.placeholder.com/300x300?text=Jewelry", 40),
-        ("Wedding Invitation Cards", "stationery", 500, 1000, "Premium invitation cards (100 pcs)", "https://via.placeholder.com/300x300?text=Cards", 50),
+    # Products
+    products_data = [
+        (1, "Royal Wedding Lehenga", "outfits", 45000, 55000, "Beautiful red bridal lehenga", "https://via.placeholder.com/300x300?text=Lehenga", 18),
+        (1, "Designer Sherwani", "outfits", 35000, 45000, "Royal gold sherwani for groom", "https://via.placeholder.com/300x300?text=Sherwani", 22),
+        (1, "Premium Gift Hamper", "gifts", 2500, 4000, "Luxury wedding gift set", "https://via.placeholder.com/300x300?text=Gift", 37),
+        (1, "Wedding Decor Pack", "decor", 15000, 25000, "Complete decor setup", "https://via.placeholder.com/300x300?text=Decor", 40),
+        (1, "Bridal Jewelry Set", "accessories", 12000, 20000, "Gold plated bridal set", "https://via.placeholder.com/300x300?text=Jewelry", 40),
     ]
     
-    for p in products:
+    for p in products_data:
         cursor.execute('''INSERT INTO products (vendor_id, name, category, price, original_price, description, image_url, discount)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                       (1,) + p)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', p)
     
-    # Sample Guests
+    # Guests
     guests_data = [
         (wedding_id, "Amit Sharma", "amit@guest.com", "9876543210", "Friend", "confirmed", "INV001", None, 0),
         (wedding_id, "Neha Gupta", "neha@guest.com", "9876543211", "Friend", "pending", "INV002", None, 0),
@@ -296,7 +287,7 @@ def seed_demo_data():
     cursor.execute("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
                    ("Amit Sharma", "guest@demo.com", guest_pass, "guest"))
     
-    # Sample Wedding Photos
+    # Sample Photos
     for i in range(1, 7):
         cursor.execute('''INSERT INTO wedding_photos (wedding_id, photo_url, caption, is_sneak_peek)
                        VALUES (?, ?, ?, ?)''',
@@ -308,63 +299,60 @@ def seed_demo_data():
 # ==================== INVITATION GENERATOR ====================
 def generate_invitation_card(guest_name, couple_names, event_date, venue, venue_address, output_path):
     """Generate beautiful wedding invitation"""
-    img = Image.new('RGB', (800, 600), color='#FFF8F0')
-    draw = ImageDraw.Draw(img)
-    
-    # Gold borders
-    for i in range(4):
-        draw.rectangle([i*2, i*2, 800-i*2, 600-i*2], outline='#D4AF37', width=3)
-    
-    # Corner decorations
-    corner = 45
-    positions = [(10,10), (745,10), (10,545), (745,545)]
-    for x, y in positions:
-        draw.line([(x, y), (x+corner, y)], fill='#D4AF37', width=3)
-        draw.line([(x, y), (x, y+corner)], fill='#D4AF37', width=3)
-    
-    # Floral corner accents
-    for x, y in positions:
-        draw.ellipse([x-5, y-5, x+10, y+10], fill='#D4AF37', outline='#D4AF37')
-    
     try:
-        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf", 38)
-        font_names = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf", 32)
-        font_text = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22)
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
-    except:
-        font_title = font_names = font_text = font_small = ImageFont.load_default()
-    
-    # Main design
-    draw.text((400, 60), "✨ WEDDING INVITATION ✨", fill='#D4AF37', anchor="mm", font=font_title)
-    draw.text((400, 130), couple_names, fill='#8B6914', anchor="mm", font=font_names)
-    
-    # Decorative line
-    draw.line([(200, 170), (600, 170)], fill='#D4AF37', width=2)
-    draw.ellipse([(195, 165), (205, 175)], fill='#D4AF37')
-    draw.ellipse([(595, 165), (605, 175)], fill='#D4AF37')
-    
-    # Personalized
-    draw.text((400, 230), f"Dear {guest_name},", fill='#666666', anchor="mm", font=font_text)
-    draw.text((400, 280), "You are cordially invited to celebrate", fill='#555555', anchor="mm", font=font_text)
-    draw.text((400, 320), "the wedding of", fill='#555555', anchor="mm", font=font_text)
-    
-    # Details box
-    box_y = 370
-    draw.rectangle([150, box_y-15, 650, box_y+70], fill='#FFF8F0', outline='#D4AF37', width=1)
-    draw.text((400, box_y), f"📅 {event_date}", fill='#D4AF37', anchor="mm", font=font_text)
-    draw.text((400, box_y+35), f"📍 {venue}", fill='#D4AF37', anchor="mm", font=font_text)
-    draw.text((400, box_y+70), f"📌 {venue_address if venue_address else venue}", fill='#888888', anchor="mm", font=font_small)
-    
-    # Footer with decorative elements
-    draw.line([(200, 530), (600, 530)], fill='#D4AF37', width=1)
-    draw.text((400, 555), "🎉 Reception & Dinner to follow 🎉", fill='#8B6914', anchor="mm", font=font_text)
-    
-    # Save
-    os.makedirs("invitations", exist_ok=True)
-    img.save(output_path)
-    return output_path
+        img = Image.new('RGB', (800, 600), color='#FFF8F0')
+        draw = ImageDraw.Draw(img)
+        
+        # Gold borders
+        for i in range(4):
+            draw.rectangle([i*2, i*2, 800-i*2, 600-i*2], outline='#D4AF37', width=3)
+        
+        # Corner decorations
+        corner = 45
+        positions = [(10,10), (745,10), (10,545), (745,545)]
+        for x, y in positions:
+            draw.line([(x, y), (x+corner, y)], fill='#D4AF37', width=3)
+            draw.line([(x, y), (x, y+corner)], fill='#D4AF37', width=3)
+        
+        # Fonts
+        try:
+            font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf", 38)
+            font_names = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf", 32)
+            font_text = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22)
+        except:
+            font_title = font_names = font_text = ImageFont.load_default()
+        
+        # Draw text
+        draw.text((400, 60), "✨ WEDDING INVITATION ✨", fill='#D4AF37', anchor="mm", font=font_title)
+        draw.text((400, 130), couple_names, fill='#8B6914', anchor="mm", font=font_names)
+        
+        # Decorative line
+        draw.line([(200, 170), (600, 170)], fill='#D4AF37', width=2)
+        
+        # Personalized message
+        draw.text((400, 230), f"Dear {guest_name},", fill='#666666', anchor="mm", font=font_text)
+        draw.text((400, 280), "You are cordially invited to celebrate", fill='#555555', anchor="mm", font=font_text)
+        draw.text((400, 320), "the wedding of", fill='#555555', anchor="mm", font=font_text)
+        
+        # Details box
+        box_y = 370
+        draw.rectangle([150, box_y-15, 650, box_y+70], fill='#FFF8F0', outline='#D4AF37', width=1)
+        draw.text((400, box_y), f"📅 {event_date}", fill='#D4AF37', anchor="mm", font=font_text)
+        draw.text((400, box_y+35), f"📍 {venue}", fill='#D4AF37', anchor="mm", font=font_text)
+        
+        # Footer
+        draw.line([(200, 530), (600, 530)], fill='#D4AF37', width=1)
+        draw.text((400, 555), "🎉 Reception & Dinner to follow 🎉", fill='#8B6914', anchor="mm", font=font_text)
+        
+        # Save
+        os.makedirs("invitations", exist_ok=True)
+        img.save(output_path)
+        return output_path
+    except Exception as e:
+        print(f"Error generating invitation: {e}")
+        return None
 
-# ==================== AUTH FUNCTIONS ====================
+# ==================== DATABASE FUNCTIONS ====================
 def verify_login(email, password):
     conn = get_db_connection()
     hashed = hashlib.md5(password.encode()).hexdigest()
@@ -381,6 +369,12 @@ def get_user_by_email(email):
 def get_guest_by_email(email):
     conn = get_db_connection()
     guest = conn.execute("SELECT * FROM guests WHERE email = ?", (email,)).fetchone()
+    conn.close()
+    return guest
+
+def get_guest_by_id(guest_id):
+    conn = get_db_connection()
+    guest = conn.execute("SELECT * FROM guests WHERE id = ?", (guest_id,)).fetchone()
     conn.close()
     return guest
 
@@ -444,8 +438,81 @@ def get_wedding_photos(wedding_id, sneak_peek_only=False):
     conn.close()
     return photos
 
+def add_guest(wedding_id, name, email, phone, category):
+    conn = get_db_connection()
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    conn.execute('''INSERT INTO guests (wedding_id, name, email, phone, category, invitation_code, rsvp_status)
+                   VALUES (?, ?, ?, ?, ?, ?, 'pending')''',
+                   (wedding_id, name, email, phone, category, code))
+    conn.commit()
+    conn.close()
+    return code
+
+def get_all_guests(wedding_id):
+    conn = get_db_connection()
+    guests = conn.execute("SELECT * FROM guests WHERE wedding_id = ? ORDER BY name", (wedding_id,)).fetchall()
+    conn.close()
+    return guests
+
+def delete_guest(guest_id):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM guests WHERE id = ?", (guest_id,))
+    conn.commit()
+    conn.close()
+
+def add_team_member(vendor_id, member_name, member_email, role, permissions):
+    conn = get_db_connection()
+    perms_str = ','.join(permissions) if permissions else ''
+    conn.execute('''INSERT INTO vendor_team (vendor_id, member_name, member_email, role, permissions)
+                   VALUES (?, ?, ?, ?, ?)''',
+                   (vendor_id, member_name, member_email, role, perms_str))
+    conn.commit()
+    conn.close()
+
+def get_team_members(vendor_id):
+    conn = get_db_connection()
+    members = conn.execute("SELECT * FROM vendor_team WHERE vendor_id = ?", (vendor_id,)).fetchall()
+    conn.close()
+    return members
+
+def delete_team_member(member_id):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM vendor_team WHERE id = ?", (member_id,))
+    conn.commit()
+    conn.close()
+
+def get_vendor_by_user_id(user_id):
+    conn = get_db_connection()
+    vendor = conn.execute("SELECT * FROM vendors WHERE user_id = ?", (user_id,)).fetchone()
+    conn.close()
+    return vendor
+
+def get_guest_rsvp_stats(wedding_id):
+    conn = get_db_connection()
+    confirmed = conn.execute("SELECT COUNT(*) FROM guests WHERE wedding_id = ? AND rsvp_status = 'confirmed'", (wedding_id,)).fetchone()[0]
+    pending = conn.execute("SELECT COUNT(*) FROM guests WHERE wedding_id = ? AND rsvp_status = 'pending'", (wedding_id,)).fetchone()[0]
+    declined = conn.execute("SELECT COUNT(*) FROM guests WHERE wedding_id = ? AND rsvp_status = 'declined'", (wedding_id,)).fetchone()[0]
+    conn.close()
+    return {'confirmed': confirmed, 'pending': pending, 'declined': declined, 'total': confirmed + pending + declined}
+
+def create_or_update_wedding(host_id, couple_names, event_date, venue, venue_address, guest_count):
+    conn = get_db_connection()
+    existing = conn.execute("SELECT id FROM weddings WHERE host_id = ?", (host_id,)).fetchone()
+    
+    if existing:
+        conn.execute('''UPDATE weddings 
+                       SET couple_names = ?, event_date = ?, venue = ?, venue_address = ?, guest_count = ?
+                       WHERE host_id = ?''',
+                       (couple_names, event_date, venue, venue_address, guest_count, host_id))
+    else:
+        conn.execute('''INSERT INTO weddings (host_id, couple_names, event_date, venue, venue_address, guest_count)
+                       VALUES (?, ?, ?, ?, ?, ?)''',
+                       (host_id, couple_names, event_date, venue, venue_address, guest_count))
+    conn.commit()
+    conn.close()
+
 # ==================== LOGIN PAGE ====================
-def login_page():
+def show_login():
     st.markdown("""
     <div style="text-align: center; padding: 40px 20px;">
         <h1 style="font-size: 56px;">💍 Shadi-Hub</h1>
@@ -456,7 +523,7 @@ def login_page():
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        tab1, tab2 = st.tabs(["🔐 Login", "📝 Demo Access"])
+        tab1, tab2 = st.tabs(["🔐 Login", "🎭 Demo Access"])
         
         with tab1:
             with st.form("login_form"):
@@ -472,8 +539,7 @@ def login_page():
                         st.error("Invalid credentials!")
         
         with tab2:
-            st.markdown("### 🎭 Demo Accounts")
-            st.info("Click any button to login as demo user")
+            st.markdown("Click any button to login as demo user")
             
             col_a, col_b, col_c = st.columns(3)
             with col_a:
@@ -505,8 +571,27 @@ def host_dashboard():
     st.markdown(f"<h1>🌟 Welcome, {user['name']}!</h1>", unsafe_allow_html=True)
     
     wedding = get_wedding_by_host(user['id'])
+    wedding_id = wedding['id'] if wedding else None
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 Wedding Info", "👥 Guests", "🎨 Invitations", "🛍️ Vendors", "📸 Gallery"])
+    # Stats
+    if wedding_id:
+        stats = get_guest_rsvp_stats(wedding_id)
+    else:
+        stats = {'confirmed': 0, 'pending': 0, 'declined': 0, 'total': 0}
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("👥 Total Guests", stats['total'])
+    with col2:
+        st.metric("✅ Confirmed", stats['confirmed'])
+    with col3:
+        st.metric("⏳ Pending", stats['pending'])
+    with col4:
+        st.metric("❌ Declined", stats['declined'])
+    
+    st.markdown("---")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["🏠 Wedding Info", "👥 Guest Manager", "🎨 Invitations", "🛍️ Vendors"])
     
     with tab1:
         st.subheader("Wedding Details")
@@ -515,64 +600,194 @@ def host_dashboard():
             couple = st.text_input("Couple Names", wedding['couple_names'] if wedding else "Rahul & Priya")
             venue = st.text_input("Venue", wedding['venue'] if wedding else "Grand Palace")
         with col2:
-            date = st.date_input("Wedding Date", datetime.strptime(wedding['event_date'], '%Y-%m-%d').date() if wedding and wedding['event_date'] else datetime(2024, 12, 15))
-            guest_count = st.number_input("Expected Guests", wedding['guest_count'] if wedding else 150)
+            if wedding and wedding['event_date']:
+                event_date = st.date_input("Wedding Date", datetime.strptime(wedding['event_date'], '%Y-%m-%d').date())
+            else:
+                event_date = st.date_input("Wedding Date", datetime(2024, 12, 15))
+            guest_count = st.number_input("Expected Guests", value=int(wedding['guest_count']) if wedding and wedding['guest_count'] else 150)
         
         venue_address = st.text_area("Venue Address", wedding['venue_address'] if wedding else "")
         
-        if st.button("Save Wedding Details"):
-            st.success("Wedding details saved!")
+        if st.button("💾 Save Wedding Details"):
+            create_or_update_wedding(user['id'], couple, str(event_date), venue, venue_address, guest_count)
+            st.success("✅ Wedding details saved!")
+            st.rerun()
     
     with tab2:
         st.subheader("Guest Management")
-        with st.expander("Add New Guest"):
-            name = st.text_input("Guest Name")
-            email = st.text_input("Email")
-            phone = st.text_input("Phone")
-            if st.button("Add Guest"):
-                st.success(f"Added {name}")
+        
+        with st.expander("➕ Add New Guest", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                guest_name = st.text_input("Full Name", key="gname")
+                guest_email = st.text_input("Email", key="gemail")
+            with col2:
+                guest_phone = st.text_input("Phone", key="gphone")
+                guest_category = st.selectbox("Category", ["Family", "Friend", "Colleague", "Other"], key="gcat")
+            
+            if st.button("Add Guest", key="add_btn"):
+                if guest_name and wedding_id:
+                    code = add_guest(wedding_id, guest_name, guest_email, guest_phone, guest_category)
+                    st.success(f"✅ {guest_name} added! Invitation code: {code}")
+                    st.rerun()
+                elif not wedding_id:
+                    st.warning("Please setup wedding details first in 'Wedding Info' tab")
+                else:
+                    st.warning("Please enter guest name")
+        
+        if wedding_id:
+            guests = get_all_guests(wedding_id)
+            if guests:
+                guest_data = []
+                for g in guests:
+                    guest_data.append({
+                        "Name": g['name'],
+                        "Email": g['email'] or "-",
+                        "Phone": g['phone'] or "-",
+                        "RSVP": g['rsvp_status'].title(),
+                        "ID": g['id']
+                    })
+                df = pd.DataFrame(guest_data)
+                st.dataframe(df.drop(columns=['ID']), use_container_width=True)
+                
+                with st.expander("🗑️ Delete Guest"):
+                    guest_names = {g['name']: g['id'] for g in guests}
+                    selected_guest = st.selectbox("Select guest to delete", list(guest_names.keys()))
+                    if st.button("Delete Guest", key="del_btn"):
+                        delete_guest(guest_names[selected_guest])
+                        st.success(f"Deleted {selected_guest}")
+                        st.rerun()
+            else:
+                st.info("No guests added yet.")
+        else:
+            st.warning("Please setup wedding details first")
     
     with tab3:
-        st.subheader("Invitation Generator")
-        if st.button("Generate Invitations for All Guests"):
-            st.success("Invitations generated!")
-            st.balloons()
+        st.subheader("Digital Invitation Generator")
+        if wedding and wedding_id:
+            guests = get_all_guests(wedding_id)
+            if guests:
+                if st.button("🎨 Generate Invitations for ALL Guests", use_container_width=True):
+                    os.makedirs("invitations", exist_ok=True)
+                    progress_bar = st.progress(0)
+                    for i, guest in enumerate(guests):
+                        path = f"invitations/{guest['name']}.jpg"
+                        generate_invitation_card(guest['name'], wedding['couple_names'], 
+                                               wedding['event_date'], wedding['venue'], 
+                                               wedding['venue_address'] or wedding['venue'], path)
+                        progress_bar.progress((i + 1) / len(guests))
+                    st.success(f"✅ Generated {len(guests)} invitations!")
+                    st.balloons()
+            else:
+                st.warning("Please add guests first!")
+        else:
+            st.warning("Please setup wedding details first")
     
     with tab4:
-        st.subheader("Vendor Marketplace")
-        vendors = get_all_vendors()
-        for vendor in vendors:
-            st.markdown(f"**{vendor['business_name']}** - ⭐ {vendor['rating']}")
-    
-    with tab5:
-        st.subheader("Wedding Gallery")
-        st.info("Upload and manage wedding photos here")
+        st.subheader("Find Wedding Vendors")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            category_filter = st.selectbox("Category", ["All", "photographer", "mehndi", "catering", "venue", "decor", "makeup"])
+        with col2:
+            price_filter = st.selectbox("Budget", ["All", "budget", "mid-range", "premium", "luxury"])
+        with col3:
+            location_filter = st.text_input("Location", placeholder="City name")
+        
+        vendors = get_all_vendors(
+            None if category_filter == "All" else category_filter,
+            None if price_filter == "All" else price_filter,
+            location_filter if location_filter else None
+        )
+        
+        if vendors:
+            for vendor in vendors:
+                with st.container():
+                    col1, col2, col3 = st.columns([2, 2, 1])
+                    with col1:
+                        st.markdown(f"**{vendor['business_name']}**")
+                        st.caption(f"⭐ {vendor['rating']}/5.0 • {vendor['category'].title()}")
+                    with col2:
+                        st.write(f"💰 {vendor['price_range'].title()}")
+                        st.write(f"📍 {vendor['location']}")
+                    with col3:
+                        if st.button("💝 Contact", key=f"contact_{vendor['id']}"):
+                            st.success(f"Inquiry sent to {vendor['business_name']}!")
+                    st.divider()
+        else:
+            st.info("No vendors found")
 
 # ==================== VENDOR DASHBOARD ====================
 def vendor_dashboard():
     user = st.session_state.user
     st.markdown(f"<h1>📸 Welcome, {user['name']}!</h1>", unsafe_allow_html=True)
     
+    vendor = get_vendor_by_user_id(user['id'])
+    
     tab1, tab2 = st.tabs(["👥 Team Management", "📅 Bookings"])
     
     with tab1:
         st.subheader("Add Team Member")
-        with st.form("add_team"):
-            name = st.text_input("Member Name")
-            email = st.text_input("Email")
-            role = st.selectbox("Role", ["photographer", "editor", "assistant"])
-            if st.form_submit_button("Add"):
-                st.success(f"{name} added to team!")
+        with st.form("add_team_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                member_name = st.text_input("Full Name")
+                member_email = st.text_input("Email Address")
+            with col2:
+                member_role = st.selectbox("Role", ["photographer", "editor", "assistant", "videographer"])
+                permissions = st.multiselect("Permissions", ["upload_photos", "edit_schedule", "view_clients"])
+            
+            if st.form_submit_button("➕ Add Team Member"):
+                if member_name and member_email and vendor:
+                    add_team_member(vendor['id'], member_name, member_email, member_role, permissions)
+                    st.success(f"✅ {member_name} added as {member_role}!")
+                    st.balloons()
+                    st.rerun()
+                elif not vendor:
+                    st.warning("Please complete your vendor profile first!")
+                else:
+                    st.warning("Please fill all fields")
+        
+        if vendor:
+            team = get_team_members(vendor['id'])
+            if team:
+                team_data = []
+                for member in team:
+                    team_data.append({
+                        "Name": member['member_name'],
+                        "Email": member['member_email'],
+                        "Role": member['role'].title(),
+                        "Permissions": member['permissions'] or "-",
+                        "ID": member['id']
+                    })
+                df = pd.DataFrame(team_data)
+                st.dataframe(df.drop(columns=['ID']), use_container_width=True)
+                
+                with st.expander("🗑️ Remove Team Member"):
+                    member_names = {m['member_name']: m['id'] for m in team}
+                    selected_member = st.selectbox("Select member to remove", list(member_names.keys()))
+                    if st.button("Remove Member"):
+                        delete_team_member(member_names[selected_member])
+                        st.success(f"Removed {selected_member}")
+                        st.rerun()
+            else:
+                st.info("No team members yet.")
     
     with tab2:
-        st.info("Booking requests will appear here")
+        st.subheader("Booking Requests")
+        st.info("📌 New booking inquiries will appear here")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("📝 Pending", "0")
+        with col2:
+            st.metric("✅ Confirmed", "0")
+        with col3:
+            st.metric("🎉 Completed", "0")
 
 # ==================== GUEST DASHBOARD ====================
 def guest_dashboard():
     user = st.session_state.user
     st.markdown(f"<h1>💌 Hello {user['name']}!</h1>", unsafe_allow_html=True)
     
-    # Get guest and wedding details
     guest = get_guest_by_email(user['email'])
     
     if not guest:
@@ -581,174 +796,4 @@ def guest_dashboard():
     
     wedding = get_wedding_by_id(guest['wedding_id'])
     
-    if not wedding:
-        st.error("Wedding details not found!")
-        return
-    
-    # Create tabs for different sections
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "💌 My Invitation", "✅ RSVP", "🛍️ Wedding Shop", "📸 Gallery", "💝 Blessings"
-    ])
-    
-    # ========== TAB 1: INVITATION ==========
-    with tab1:
-        st.markdown(f"""
-        <div class="wedding-card">
-            <h2 style="color: #D4AF37;">✨ You're Invited! ✨</h2>
-            <h3>{wedding['couple_names']}</h3>
-            <p>Request the pleasure of your company at their wedding celebration</p>
-            <div style="height: 2px; background: linear-gradient(90deg, transparent, #D4AF37, transparent); margin: 20px;"></div>
-            <p><b>📅 Date:</b> {wedding['event_date']}</p>
-            <p><b>📍 Venue:</b> {wedding['venue']}</p>
-            <p><b>📌 Address:</b> {wedding['venue_address'] or wedding['venue']}</p>
-            <p><b>⏰ Time:</b> 7:00 PM onwards</p>
-            <div style="height: 2px; background: linear-gradient(90deg, transparent, #D4AF37, transparent); margin: 20px;"></div>
-            <p style="color: #D4AF37;">🎉 Reception & Dinner to follow 🎉</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Generate and download invitation button
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if st.button("📄 Download Invitation Card", use_container_width=True):
-                invite_path = f"invitations/{user['name']}_invitation.jpg"
-                generate_invitation_card(
-                    user['name'], 
-                    wedding['couple_names'],
-                    wedding['event_date'],
-                    wedding['venue'],
-                    wedding['venue_address'],
-                    invite_path
-                )
-                with open(invite_path, "rb") as f:
-                    st.download_button(
-                        label="💾 Save Invitation",
-                        data=f,
-                        file_name=f"{user['name']}_wedding_invitation.jpg",
-                        mime="image/jpeg",
-                        use_container_width=True
-                    )
-        
-        with col2:
-            # WhatsApp Share Button
-            message = f"🎉 *Wedding Invitation* 🎉%0A%0A*{wedding['couple_names']}* are getting married!%0A%0A📅 Date: {wedding['event_date']}%0A📍 Venue: {wedding['venue']}%0A⏰ Time: 7:00 PM%0A%0AYou're cordially invited to celebrate with us! 🎊"
-            whatsapp_url = f"https://wa.me/?text={message}"
-            st.markdown(f'<a href="{whatsapp_url}" target="_blank"><button style="background:#25D366; color:white; border:none; border-radius:25px; padding:10px; width:100%; cursor:pointer;">📱 Share on WhatsApp</button></a>', unsafe_allow_html=True)
-        
-        with col3:
-            if st.button("📤 Share Invitation", use_container_width=True):
-                st.info("Copy the link to share with family!")
-                st.code(f"https://shadi-hub.app/invite/{guest['invitation_code']}")
-    
-    # ========== TAB 2: RSVP ==========
-    with tab2:
-        st.subheader("Will You Attend?")
-        
-        current_status = guest['rsvp_status']
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if current_status != "confirmed":
-                if st.button("✅ Yes, I Will Attend", use_container_width=True):
-                    update_guest_rsvp(guest['id'], "confirmed")
-                    st.success("🎉 Thank you! We can't wait to celebrate with you!")
-                    st.balloons()
-                    st.rerun()
-            else:
-                st.success("✅ You are attending! We're excited to see you!")
-        
-        with col2:
-            if current_status != "declined":
-                if st.button("❌ Sorry, Cannot Attend", use_container_width=True):
-                    update_guest_rsvp(guest['id'], "declined")
-                    st.info("💝 We'll miss you! Photos will be shared after the event.")
-                    st.rerun()
-            else:
-                st.info("❌ You've declined the invitation")
-        
-        if current_status == "pending":
-            st.warning("⏳ Please let us know if you can attend by clicking one of the buttons above.")
-        elif current_status == "confirmed":
-            st.success("We look forward to celebrating with you! 🎉")
-        elif current_status == "declined":
-            st.info("We'll share memories with you after the event! 📸")
-    
-    # ========== TAB 3: WEDDING SHOP ==========
-    with tab3:
-        st.subheader("🛍️ Wedding Shop")
-        st.markdown("<p>Shop for wedding essentials, gifts, and more!</p>", unsafe_allow_html=True)
-        
-        # Product categories
-        categories = ["All", "outfits", "gifts", "decor", "accessories", "stationery"]
-        selected_cat = st.selectbox("Browse Category", categories, format_func=lambda x: {"All": "All Items", "outfits": "👗 Outfits", "gifts": "🎁 Gifts", "decor": "🎀 Decor", "accessories": "💎 Accessories", "stationery": "📜 Stationery"}.get(x, x))
-        
-        products = get_all_products(None if selected_cat == "All" else selected_cat)
-        
-        if products:
-            cols = st.columns(3)
-            for idx, product in enumerate(products):
-                with cols[idx % 3]:
-                    discount_text = f"<span style='background:#D4AF37; color:white; padding:2px 8px; border-radius:20px; font-size:12px;'>-{product['discount']}% OFF</span>" if product['discount'] else ""
-                    
-                    st.markdown(f"""
-                    <div class="product-card">
-                        <img src="{product['image_url']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
-                        <h4 style="margin:10px 0 5px 0;">{product['name']}</h4>
-                        <p style="color:#888; font-size:12px;">{product['description'][:60]}...</p>
-                        <div>
-                            <span class="price-tag">₹{product['price']:,.0f}</span>
-                            <span style="text-decoration:line-through; color:#999; margin-left:8px;">₹{product['original_price']:,.0f}</span>
-                            {discount_text}
-                        </div>
-                    </div>
-                    <br>
-                    """, unsafe_allow_html=True)
-                    
-                    if st.button(f"🛒 Buy Now", key=f"buy_{product['id']}", use_container_width=True):
-                        st.success(f"Added {product['name']} to cart! 🎁")
-        else:
-            st.info("No products found in this category.")
-    
-    # ========== TAB 4: GALLERY ==========
-    with tab4:
-        st.subheader("📸 Wedding Gallery")
-        
-        # View options
-        view_option = st.radio("View", ["Sneak Peeks", "Full Gallery"], horizontal=True)
-        
-        if view_option == "Sneak Peeks":
-            photos = get_wedding_photos(wedding['id'], sneak_peek_only=True)
-            st.caption("Here's a glimpse of the celebrations!")
-        else:
-            photos = get_wedding_photos(wedding['id'], sneak_peek_only=False)
-        
-        if photos:
-            cols = st.columns(3)
-            for idx, photo in enumerate(photos):
-                with cols[idx % 3]:
-                    st.image(photo['photo_url'], caption=photo['caption'] or "Wedding Moment", use_container_width=True)
-        else:
-            st.info("📸 Photos will appear here after the wedding!")
-            
-            # Sample gallery placeholder
-            st.markdown("""
-            <div style="background: #f8f8f8; border-radius: 15px; padding: 40px; text-align: center;">
-                <p>🌟 Wedding moments will be shared here</p>
-                <p>Stay tuned for beautiful memories!</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # ========== TAB 5: BLESSINGS ==========
-    with tab5:
-        st.subheader("💝 Leave Your Blessings")
-        
-        current_wish = guest['well_wish'] if guest['well_wish'] else ""
-        well_wish = st.text_area("Write your heartfelt wishes for the couple...", value=current_wish, height=150, placeholder="Wishing you a lifetime of love and happiness...")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("💕 Send Blessings", use_container_width=True):
-                if well_wish:
-                    update_guest_well_wish(guest['id'],
+    if not wedding
